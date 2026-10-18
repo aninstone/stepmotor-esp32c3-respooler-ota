@@ -971,10 +971,14 @@ void stopOtaAp() {
   if (otaApIsHotspot) otaDnsServer.stop();
   otaApServer.end();
   WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_STA);
+  esp_coex_preference_set(ESP_COEX_PREFER_BT);   // hand the radio back to BLE
   otaApOn = false;
-  Serial.println("[OTA-AP] closed -> reboot (BLE stack was released)");
-  delay(200);
-  ESP.restart();          // cleanest way back: BLE + STA + OLED all re-init
+  otaApStations = 0;
+  currentState = 'I';
+  if (wifiSSID.length() > 0) WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
+  Serial.println("[OTA-AP] closed -- BLE is still up, no reboot needed");
+  sendStatus(true);
 }
 
 void startOtaAp() {
@@ -984,15 +988,11 @@ void startOtaAp() {
   stepperStop();
   digitalWrite(EN_PIN, HIGH);
 
-  // The C3 has ONE 2.4 GHz radio and setup() asked the coex layer to prefer
-  // BT (ESP_COEX_PREFER_BT). With BLE advertising on, the AP came up but was
-  // invisible to scanners. Hand the radio to WiFi and drop the BLE stack --
-  // we are flashing over the web page anyway, and we reboot right after.
+  // Keep BLE alive! Turning the hotspot on must NOT kill Bluetooth, otherwise
+  // the app can't connect while OTA mode is active. The C3 has one radio, so
+  // just hand it to WiFi (AP beacons are the time-critical part); BLE keeps
+  // advertising and reconnects whenever the radio is free.
   esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
-  deviceConnected = false;
-  NimBLEDevice::deinit(true);
-  // Hard-reset the radio: after BLE is torn down the WiFi PHY sometimes stays
-  // half-initialised and the AP beacons never reach scanners.
   WiFi.persistent(false);
   WiFi.disconnect(true);        // drop STA cleanly BEFORE switching mode
   WiFi.mode(WIFI_OFF);
@@ -1000,7 +1000,9 @@ void startOtaAp() {
   WiFi.mode(WIFI_AP);
   WiFi.setTxPower(WIFI_POWER_19_5dBm);
   delay(100);
-  Serial.printf("[OTA-AP] BLE released, free heap=%u\n", ESP.getFreeHeap());
+  Serial.printf("[OTA-AP] AP up, BLE advertising=%d, heap=%u\n",
+                NimBLEDevice::getAdvertising()->isAdvertising() ? 1 : 0,
+                ESP.getFreeHeap());
 
   bool apOk;
 #if OTA_AP_OPEN
