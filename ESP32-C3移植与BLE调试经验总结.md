@@ -272,6 +272,10 @@ if (rotaryEncoder.encoderChanged()) {
 > 热点曾用名 `LTS-CB-OTA`，因为改过一次信道（6→1→6）导致 Android 判定"配置变了"而拒绝重连，
 > 干脆**改名 `LTS-CB-OTA2`** 让手机当全新网络处理，问题立刻消失。改 SSID 比"让用户忘记网络"可靠得多。
 
+**热点开着时蓝牙不受影响**：射频偏好切成 `ESP_COEX_PREFER_WIFI`（保证 AP 信标不丢），
+BLE 继续 advertising，App 仍能连接（日志验证 `BLE advertising=1`）。退出 OTA 用
+`{"CMD":"OTA_AP_OFF"}` 或等 30 分钟空闲，只关热点、不重启。
+
 **自动进入**：上电/烧录后 **6 秒**内没连上路由器 → 自动开热点（不需要任何操作）。
 热点 30 分钟无设备连接 → 自动关闭并重启，且这次不再重开（靠 `RTC_DATA_ATTR`
 标记 + `esp_reset_reason()`：烧录/复位键/冷启动会重新允许自动开，只有超时引发的
@@ -307,11 +311,23 @@ HTTP 400/413，**一个字节都不会写**。
 
 ### 踩过的坑（按踩坑顺序）
 
-1. **AP 起来了但电脑扫不到** — C3 只有一个 2.4G 射频，`setup()` 里
-   `esp_coex_preference_set(ESP_COEX_PREFER_BT)` 把射频资源给了蓝牙。
-   修复：开热点前 `ESP_COEX_PREFER_WIFI` + `NimBLEDevice::deinit(true)` +
-   `WiFi.mode(WIFI_OFF)` 硬复位射频 → `WiFi.mode(WIFI_AP)` → `softAP(..., ch=6)`。
-   释放 BLE 后 heap 从 175 KB 涨到 196 KB，也顺带缓解内存压力。
+1. **AP 起来了但电脑扫不到 —— 一次误判，代价是蓝牙被关**
+   - 现象：热点日志显示启动成功，`WiFi.softAPIP()` 有值，但 9~18 秒内一直扫不到。
+   - 我当时的判断：C3 只有一个 2.4G 射频，`setup()` 里
+     `esp_coex_preference_set(ESP_COEX_PREFER_BT)` 把射频优先给了蓝牙，
+     于是"修复"成 `ESP_COEX_PREFER_WIFI` + `NimBLEDevice::deinit(true)`。
+   - **真实原因：Windows 的 WLAN 扫描周期约 60 秒**，等 9~18 秒扫不到完全正常；
+     把 BLE 关掉纯属误伤 —— 结果热点一开，App 立刻找不到蓝牙。
+   - **正确做法（已改回）**：只切共存偏好，**绝不 deinit BLE**
+     ```cpp
+     esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
+     WiFi.mode(WIFI_AP);
+     WiFi.softAP(SSID, PASS, 6, 0, 8);
+     ```
+     AP 正常广播，BLE 继续 advertising（日志 `BLE advertising=1`，heap 145 KB 仍充足），
+     网页刷机与 App 蓝牙控制可以同时用。`OTA_AP_OFF` 直接把射频偏好切回 `PREFER_BT`，
+     不需要重启。
+   - **教训：不要为了修一个没被证实的现象，去牺牲已经交付的功能。**
 2. **Windows 扫描列表看不到 ≠ 没广播** — 已连接状态下 Windows 的 WLAN 扫描周期
    约 60 秒，等 9~18 秒扫不到很正常。
 3. **网页显示"网络中断"但固件其实刷成功了** — 数据传完 `Update.end()` 后立刻
