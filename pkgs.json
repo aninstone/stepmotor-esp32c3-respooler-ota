@@ -1,0 +1,44 @@
+[
+ {
+  "name": "toolchain-riscv32-esp",
+  "owner": "espressif",
+  "version": "8.4.0+2021r2-patch5",
+  "size": 258829021,
+  "url": "https://dl.registry.platformio.org/download/espressif/tool/toolchain-riscv32-esp/8.4.0+2021r2-patch5/toolchain-riscv32-esp-windows_amd64-8.4.0+2021r2-patch5.tar.gz"
+ },
+ {
+  "name": "tool-riscv32-esp-elf-gdb",
+  "owner": "espressif",
+  "version": "11.2.0+20220823",
+  "size": 24499675,
+  "url": "https://dl.registry.platformio.org/download/espressif/tool/tool-riscv32-esp-elf-gdb/11.2.0+20220823/tool-riscv32-esp-elf-gdb-windows_amd64-11.2.0+20220823.tar.gz"
+ },
+ {
+  "name": "tool-mkspiffs",
+  "owner": "platformio",
+  "version": "2.230.0",
+  "size": 746004,
+  "url": "https://dl.registry.platformio.org/download/platformio/tool/tool-mkspiffs/2.230.0/tool-mkspiffs-windows-2.230.0.tar.gz"
+ },
+ {
+  "name": "tool-mklittlefs",
+  "owner": "platformio",
+  "version": "1.203.210628",
+  "size": 343860,
+  "url": "https://dl.registry.platformio.org/download/platformio/tool/tool-mklittlefs/1.203.210628/tool-mklittlefs-windows_amd64-1.203.210628.tar.gz"
+ },
+ {
+  "name": "tool-mkfatfs",
+  "owner": "platformio",
+  "version": "2.0.1",
+  "size": 990541,
+  "url": "https://dl.registry.platformio.org/download/platformio/tool/tool-mkfatfs/2.0.1/tool-mkfatfs-windows_amd64-2.0.1.tar.gz"
+ },
+ {
+  "name": "tool-cmake",
+  "owner": "platformio",
+  "version": "3.30.2",
+  "size": 29712551,
+  "url": "https://dl.registry.platformio.org/download/platformio/tool/tool-cmake/3.30.2/tool-cmake-windows_amd64-3.30.2.tar.gz"
+ }
+]
