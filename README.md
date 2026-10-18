@@ -112,7 +112,7 @@ GPIO16/17（Flash D0/D1）——一配置就无限重启。
 
 - 热点名 `LTS-CB-OTA2`（WPA2）、IP `192.168.4.1`、信道 6（改过信道要同步改名，否则手机会因缓存拒绝重连）
 - 已连路由器时不会开热点，屏幕左下角显示 `WIFI <IP>`
-- 热点模式会临时释放 BLE（C3 单射频，否则 AP 扫不到），30 分钟无操作自动关闭并重启
+- 热点开着时 **BLE 仍在线**（射频偏好给 WiFi，但 BLE 继续 advertising，日志 `BLE advertising=1`），App 可同时连接控板；30 分钟无操作只关热点，不重启
 - 屏幕左下角 WiFi 状态：`WIFI --` / `WIFI Connected` / `WIFI <IP>`
 
 ---
@@ -152,7 +152,7 @@ pio device monitor -b 115200        # 串口日志
 ### v1.4.0 — 2026-10-19
 - **新增 WiFi 局域网 OTA 烧录**：板内刷机网页（SoftAP / 局域网双模式）、Captive Portal
   自动弹页、上传进度上屏、**三层固件校验**（0xE9 + app descriptor + 分区大小）
-- 上电 6 秒没联网自动开热点；热点模式释放 BLE 解决单射频共存问题
+- 上电 6 秒没联网自动开热点；热点与 BLE **共存**（不 deinit 蓝牙，射频偏好切 WiFi）
 - OLED 左下角新增 WiFi 状态（`WIFI --` / `WIFI Connected` / `WIFI <IP>`）
 - 新增 `tools/ota_server.py`：电脑端固件分发页（可选用，拖拽上传 + SHA256 展示）
 
