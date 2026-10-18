@@ -819,8 +819,11 @@ void sendOTAUpdate() {
 //   serial/BLE:  {"CMD":"OTA_AP"}     -> SSID "LTS-CB-OTA" / pass 12345678
 //   browser:     http://192.168.4.1/  -> pick firmware.bin -> flashed
 //   serial/BLE:  {"CMD":"OTA_AP_OFF"} -> back to normal STA mode
-#define OTA_AP_SSID "LTS-CB-OTA"
+#define OTA_AP_SSID "LTS-CB-OTA2"      // renamed: forces phones to forget old cache
 #define OTA_AP_PASS "12345678"          // WPA2 needs >= 8 chars
+// 1 = open network (no password, only for diagnosing phone-side problems).
+// Keep 0 for normal use: WPA2 with OTA_AP_PASS.
+#define OTA_AP_OPEN 0
 #define OTA_SLOT_SIZE 1310720UL         // app partition size (1.25 MB) -- hard cap
 #define OTA_AP_TIMEOUT_MS (30UL * 60UL * 1000UL)   // auto-off after 30 min idle
 
@@ -837,8 +840,11 @@ static const char OTA_AP_PAGE[] =
     ".k{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;"
     "border-bottom:1px dashed #26324a}.k b{font-family:Consolas,monospace;font-weight:600}"
     "#drop{border:2px dashed #26324a;border-radius:12px;padding:30px;text-align:center;"
-    "color:#8b9bb8;margin:18px 0;cursor:pointer;display:block}"
+    "color:#8b9bb8;margin:18px 0;cursor:pointer;display:block;position:relative}"
     "#drop.hot{border-color:#4da3ff;color:#e8eefb}"
+    "#f{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;"
+    "cursor:pointer;z-index:2}"
+    "#pick{width:100%;margin-top:10px}"
     "button{background:#4da3ff;color:#06101f;border:0;border-radius:9px;"
     "padding:11px 18px;font-weight:700;font-size:14px}"
     "#bar{height:6px;background:#0d1522;border-radius:6px;overflow:hidden;"
@@ -847,10 +853,14 @@ static const char OTA_AP_PAGE[] =
     "</style></head><body><div class=c>"
     "<h1>LTS Respooler · 无线刷机</h1>"
     "<div class=dim>选 .pio/build/esp32c3/firmware.bin 上传，约 1.2 MB</div>"
-    "<div class=k><span>板子热点</span><b>LTS-CB-OTA</b></div>"
+    "<div class=k><span>板子热点</span><b>LTS-CB-OTA2</b></div>"
     "<div class=k><span>本机地址</span><b>192.168.4.1</b></div>"
-    "<label id=drop for=f>点击选择 firmware.bin（或拖进来）</label>"
-    "<input id=f type=file hidden>"
+    "<label id=drop>点击这里选择 firmware.bin"
+    "<div style='font-size:12px;margin-top:6px;color:#6b7c99'>"
+    "手机看不到文件时，请在文件选择器里切到「文件 / 下载」分类</div>"
+    "<input id=f type=file></label>"
+    "<button type=button id=pick onclick=\"document.getElementById('f').click()\">"
+    "选择 firmware.bin</button>"
     "<div id=bar><i></i></div><div id=msg></div>"
     "</div><script>"
     "var d=document.querySelector('#drop'),fi=document.querySelector('#f'),"
@@ -984,6 +994,7 @@ void startOtaAp() {
   // Hard-reset the radio: after BLE is torn down the WiFi PHY sometimes stays
   // half-initialised and the AP beacons never reach scanners.
   WiFi.persistent(false);
+  WiFi.disconnect(true);        // drop STA cleanly BEFORE switching mode
   WiFi.mode(WIFI_OFF);
   delay(300);
   WiFi.mode(WIFI_AP);
@@ -991,8 +1002,13 @@ void startOtaAp() {
   delay(100);
   Serial.printf("[OTA-AP] BLE released, free heap=%u\n", ESP.getFreeHeap());
 
-  WiFi.disconnect(true);
-  if (!WiFi.softAP(OTA_AP_SSID, OTA_AP_PASS, 6, 0, 4)) {   // channel 6, visible, 4 clients
+  bool apOk;
+#if OTA_AP_OPEN
+  apOk = WiFi.softAP(OTA_AP_SSID, nullptr, 6, 0, 8);   // open, ch6, 8 clients
+#else
+  apOk = WiFi.softAP(OTA_AP_SSID, OTA_AP_PASS, 6, 0, 8);
+#endif
+  if (!apOk) {   // ch6, visible, 8 clients
     Serial.println("[OTA-AP] softAP failed, rebooting");
     delay(300);
     ESP.restart();
@@ -1007,7 +1023,7 @@ void startOtaAp() {
   otaApStations = 0;
   updateOled();
   Serial.printf("[OTA-AP] SSID=%s PASS=%s ch=%d  open http://%s/  (30 min idle = auto off)\n",
-                OTA_AP_SSID, OTA_AP_PASS, 6,
+                OTA_AP_SSID, OTA_AP_OPEN ? "(open)" : OTA_AP_PASS, 6,
                 WiFi.softAPIP().toString().c_str());
 }
 
